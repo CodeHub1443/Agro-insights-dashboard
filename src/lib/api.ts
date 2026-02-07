@@ -1,10 +1,8 @@
 import { InferenceJob, CabbageDetection } from '@/types/agro';
 import { generateMockDetections } from './mockData';
+import { API_BASE_URL as API } from '@/config';
 
 // ===================== REAL BACKEND INTEGRATION =====================
-// Gradually replacing mock pipeline with FastAPI
-
-const API = "http://127.0.0.1:8000";
 
 /**
  * REAL: Upload video to FastAPI backend
@@ -67,7 +65,7 @@ export const uploadVideo = async (
     await delay(200);
     onProgress(i);
   }
-  
+
   // Return mock video ID - will be replaced with actual API response
   return `video-${Date.now()}`;
 };
@@ -89,7 +87,7 @@ export const startInference = async (videoId: string): Promise<string> => {
 export const getInferenceStatus = async (jobId: string): Promise<InferenceJob> => {
   // Placeholder: Returns mock job status
   await delay(300);
-  
+
   return {
     id: jobId,
     videoFileName: 'uploaded_video.mp4',
@@ -150,7 +148,7 @@ export const runInferencePipeline = async (
     callbacks.onStatusChange('complete', 'Inference complete');
     callbacks.onProgress(100);
     callbacks.onComplete(detections);
-    
+
   } catch (error) {
     callbacks.onError(error instanceof Error ? error.message : 'Unknown error occurred');
     callbacks.onStatusChange('error', 'Inference failed');

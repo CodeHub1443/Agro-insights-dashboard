@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { uploadVideoReal, runInferenceReal } from '@/lib/api';
 import { InferenceStatus } from '@/types/agro';
 import { cn } from '@/lib/utils';
+import { getStaticUrl } from '@/config';
 import {
   Upload,
   FileVideo,
@@ -105,8 +106,6 @@ const InferencePanel: React.FC = () => {
       const result = await runInferenceReal(filename);
       console.log("RUN RESULT:", result);
 
-      const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
-
       setDetectionSummary({
         total: result.total_cabbages ?? 0,
         normal: result.total_cabbages ?? 0, // temporary until class-wise counts exist
@@ -114,8 +113,8 @@ const InferencePanel: React.FC = () => {
         dead: 0,
       });
 
-      setVideoUrl(`${API_BASE}/static/${result.video}`);
-      setMapUrl(`${API_BASE}/static/${result.map}`);
+      setVideoUrl(getStaticUrl(result.video) || '');
+      setMapUrl(getStaticUrl(result.map));
 
       // Update global app state
       setDetections([]); // detections are spatially rendered via map/video now

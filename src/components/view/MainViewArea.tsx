@@ -6,6 +6,7 @@ import { useApp } from '@/contexts/AppContext';
 import MapContainer from '@/components/map/MapContainer';
 import VideoPlayer from '@/components/video/VideoPlayer';
 import DetectionSummaryPanel from '@/components/detection/DetectionSummaryPanel';
+import { getOutputUrl } from '@/config';
 
 import { Video, Map, LayoutGrid } from 'lucide-react';
 
@@ -35,13 +36,8 @@ const MainViewArea: React.FC<MainViewAreaProps> = ({
 
   const outputs = currentInference?.outputs;
 
-  const mapUrl = outputs?.map
-    ? `http://127.0.0.1:8000/outputs/${outputs.map}`
-    : undefined;
-
-  const videoUrl = outputs?.video
-    ? `http://127.0.0.1:8000/outputs/${outputs.video}`
-    : '';
+  const mapUrl = getOutputUrl(outputs?.map);
+  const videoUrl = getOutputUrl(outputs?.video) || '';
 
   const [activeTab, setActiveTab] = useState<ViewTab>('video');
   const [liveFrameSummary, setLiveFrameSummary] = useState<any>(null);
