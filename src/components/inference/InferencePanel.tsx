@@ -1,18 +1,20 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { uploadVideoReal, runInferenceReal } from '@/lib/api';
+import { uploadVideoAndSrt, runInferenceReal } from '@/lib/api';
 import { InferenceStatus } from '@/types/agro';
 import { cn } from '@/lib/utils';
 import { getStaticUrl } from '@/config';
 import {
   Upload,
   FileVideo,
+  FileText,
   X,
   Play,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Paperclip
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -23,8 +25,10 @@ const InferencePanel: React.FC = () => {
   const { setDetections, setCurrentInference, setDetectionSummary, setVideoUrl, setMapUrl } = useApp();
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const srtInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedSrt, setSelectedSrt] = useState<File | null>(null);
   const [status, setStatus] = useState<InferenceStatus>('idle');
   const [statusText, setStatusText] = useState('');
   const [progress, setProgress] = useState(0);
@@ -56,6 +60,14 @@ const InferencePanel: React.FC = () => {
     }
   };
 
+  const handleSrtSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedSrt(file);
+      setError(null);
+    }
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -73,11 +85,22 @@ const InferencePanel: React.FC = () => {
 
   const clearFile = () => {
     setSelectedFile(null);
+    setSelectedSrt(null);
     setStatus('idle');
     setProgress(0);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    if (srtInputRef.current) {
+      srtInputRef.current.value = '';
+    }
+  };
+
+  const clearSrt = () => {
+    setSelectedSrt(null);
+    if (srtInputRef.current) {
+      srtInputRef.current.value = '';
     }
   };
 
@@ -95,15 +118,18 @@ const InferencePanel: React.FC = () => {
     const jobId = `job-${Date.now()}`;
 
     try {
-      // 1️⃣ Upload video
-      const { filename } = await uploadVideoReal(selectedFile);
+      // 1️⃣ Upload video and SRT
+      if (!selectedSrt) {
+        throw new Error("Please select an SRT file as well.");
+      }
+      const uploadResult = await uploadVideoAndSrt(selectedFile, selectedSrt);
 
       setStatus('processing');
       setStatusText(getLocalizedStatusText('processing'));
       setProgress(20);
 
       // 2️⃣ Run inference
-      const result = await runInferenceReal(filename);
+      const result = await runInferenceReal(uploadResult.video, uploadResult.srt);
       console.log("RUN RESULT:", result);
 
       setDetectionSummary({
@@ -184,28 +210,71 @@ const InferencePanel: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="bg-muted/30 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <FileVideo size={20} className="text-primary" />
+          <div className="space-y-3">
+            {/* Video File Display */}
+            <div className="bg-muted/30 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileVideo size={20} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-muted-foreground mb-0.5 uppercase tracking-wider">Video File</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
+                </div>
+                {!isRunning && status !== 'complete' && (
+                  <button
+                    onClick={clearFile}
+                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-smooth"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {selectedFile.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatFileSize(selectedFile.size)}
-                </p>
-              </div>
-              {!isRunning && status !== 'complete' && (
-                <button
-                  onClick={clearFile}
-                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-smooth"
-                >
-                  <X size={16} />
-                </button>
-              )}
             </div>
+
+            {/* SRT File Section */}
+            {!selectedSrt ? (
+              <div
+                className="border border-dashed border-border rounded-xl p-4 text-center hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer flex flex-col items-center justify-center gap-2"
+                onClick={() => srtInputRef.current?.click()}
+              >
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Paperclip size={16} />
+                  <span className="text-sm font-medium">Click to upload SRT file</span>
+                </div>
+                <p className="text-xs text-muted-foreground">This file is required for metadata</p>
+              </div>
+            ) : (
+              <div className="bg-primary/5 border border-primary/10 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <FileText size={20} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-primary/70 mb-0.5 uppercase tracking-wider">SRT Metadata</p>
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {selectedSrt.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(selectedSrt.size)}
+                    </p>
+                  </div>
+                  {!isRunning && status !== 'complete' && (
+                    <button
+                      onClick={clearSrt}
+                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-smooth"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -214,6 +283,14 @@ const InferencePanel: React.FC = () => {
           type="file"
           accept="video/*"
           onChange={handleFileSelect}
+          className="hidden"
+        />
+
+        <input
+          ref={srtInputRef}
+          type="file"
+          accept=".srt"
+          onChange={handleSrtSelect}
           className="hidden"
         />
 

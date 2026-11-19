@@ -5,13 +5,17 @@ import { API_BASE_URL as API } from '@/config';
 // ===================== REAL BACKEND INTEGRATION =====================
 
 /**
- * REAL: Upload video to FastAPI backend
+ * REAL: Upload video and SRT to FastAPI backend
  */
-export const uploadVideoReal = async (
-  file: File
-): Promise<{ filename: string }> => {
+export const uploadVideoAndSrt = async (
+  video: File,
+  srt: File
+): Promise<{ video: string; srt: string }> => {
   const fd = new FormData();
-  fd.append("file", file);
+
+  // MUST match backend field names
+  fd.append("video", video);
+  fd.append("srt", srt);
 
   const res = await fetch(`${API}/upload`, {
     method: "POST",
@@ -30,14 +34,15 @@ export const uploadVideoReal = async (
  * REAL: Run inference via FastAPI
  */
 export const runInferenceReal = async (
-  filename: string
+  videoFilename: string,
+  srtFilename: string
 ): Promise<{
   total_cabbages: number;
   video: string;
   map: string;
 }> => {
   const res = await fetch(
-    `${API}/run?filename=${encodeURIComponent(filename)}`,
+    `${API}/run?video_filename=${encodeURIComponent(videoFilename)}&srt_filename=${encodeURIComponent(srtFilename)}`,
     { method: "POST" }
   );
 
